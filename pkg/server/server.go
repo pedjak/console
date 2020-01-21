@@ -303,6 +303,8 @@ func (s *Server) HTTPHandler() http.Handler {
 	handle("/api/helm/template", authHandlerWithUser(s.handleHelmRenderManifests))
 	handle("/api/helm/release", authHandlerWithUser(s.handleHelmInstall))
 	handle("/api/helm/releases", authHandlerWithUser(s.handleHelmList))
+	handle("/api/helm/chart", authHandlerWithUser(s.handleChartGet))
+
 	helmChartRepoProxy := proxy.NewProxy(s.HelmChartRepoProxyConfig)
 
 	handle(helmChartRepoProxyEndpoint, http.StripPrefix(
@@ -485,6 +487,22 @@ func (s *Server) handleHelmList(user *auth.User, w http.ResponseWriter, r *http.
 	resp, err := actions.ListReleases(conf)
 	if err != nil {
 		sendResponse(w, http.StatusBadGateway, apiError{fmt.Sprintf("Failed to list helm releases: %v", err)})
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+
+	res, _ := json.Marshal(resp)
+	w.Write(res)
+}
+
+func (s *Server) handleChartGet(user *auth.User, w http.ResponseWriter, r *http.Request) {
+	params := r.URL.Query()
+	chartUrl := params.Get("url")
+
+	conf := actions.GetActionConfigurations(s.KubeAPIServerURL, "default", user.Token, &s.K8sClient.Transport)
+	resp, err := actions.GetChart(chartUrl, conf)
+	if err != nil {
+		sendResponse(w, http.StatusBadGateway, apiError{fmt.Sprintf("Failed to retrieve chart: %v", err)})
 	}
 
 	w.Header().Set("Content-Type", "application/json")
