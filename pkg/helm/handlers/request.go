@@ -1,4 +1,4 @@
-package helm
+package handlers
 
 type HelmRequest struct {
 	Name      string                 `json:"name"`

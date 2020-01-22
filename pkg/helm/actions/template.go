@@ -3,13 +3,14 @@ package actions
 import (
 	"bytes"
 	"fmt"
+	"path/filepath"
+	"regexp"
+	"strings"
+
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart/loader"
 	"helm.sh/helm/v3/pkg/cli"
 	"helm.sh/helm/v3/pkg/releaseutil"
-	"path/filepath"
-	"regexp"
-	"strings"
 )
 
 func RenderManifests(name string, url string, vals map[string]interface{}, conf *action.Configuration) (string, error) {
@@ -20,7 +21,7 @@ func RenderManifests(name string, url string, vals map[string]interface{}, conf 
 	client.DryRun = true
 	includeCrds := true
 	client.ReleaseName = "RELEASE-NAME"
-	client.Replace = true // Skip the name check
+	client.Replace = true // Skip the releaseName check
 	client.ClientOnly = !validate
 	emptyResponse := ""
 
@@ -63,7 +64,7 @@ func RenderManifests(name string, url string, vals map[string]interface{}, conf 
 	}
 
 	// if we have a list of files to render, then check that each of the
-	// provided files exists in the chart.
+	// provided files exists in the chartPath.
 	if len(showFiles) > 0 {
 		splitManifests := releaseutil.SplitManifests(manifests.String())
 		manifestNameRegex := regexp.MustCompile("# Source: [^/]+/(.+)")
@@ -82,14 +83,14 @@ func RenderManifests(name string, url string, vals map[string]interface{}, conf 
 				manifestPath := filepath.Join(manifestPathSplit...)
 
 				// if the filepath provided matches a manifest path in the
-				// chart, render that manifest
+				// chartPath, render that manifest
 				if f == manifestPath {
 					manifestsToRender = append(manifestsToRender, manifest)
 					missing = false
 				}
 			}
 			if missing {
-				return "", fmt.Errorf("could not find template %s in chart", f)
+				return "", fmt.Errorf("could not find template %s in chartPath", f)
 			}
 			for _, m := range manifestsToRender {
 				response[f] = m

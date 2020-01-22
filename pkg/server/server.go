@@ -3,17 +3,17 @@ package server
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/coreos/dex/api"
-	"github.com/coreos/pkg/capnslog"
-	"github.com/coreos/pkg/health"
-	"github.com/openshift/console/pkg/helm"
-	"github.com/openshift/console/pkg/helm/actions"
+	"github.com/openshift/console/pkg/helm/handlers"
 	"html/template"
 	"io"
 	"net/http"
 	"net/url"
 	"os"
 	"path"
+
+	"github.com/coreos/dex/api"
+	"github.com/coreos/pkg/capnslog"
+	"github.com/coreos/pkg/health"
 
 	"github.com/openshift/console/pkg/auth"
 	"github.com/openshift/console/pkg/proxy"
@@ -300,9 +300,34 @@ func (s *Server) HTTPHandler() http.Handler {
 	handle("/api/console/monitoring-dashboard-config", authHandler(s.handleMonitoringDashboardConfigmaps))
 	handle("/api/console/version", authHandler(s.versionHandler))
 
-	handle("/api/helm/template", authHandlerWithUser(s.handleHelmRenderManifests))
-	handle("/api/helm/release", authHandlerWithUser(s.handleHelmInstall))
-	handle("/api/helm/releases", authHandlerWithUser(s.handleHelmList))
+	// Helm Endpoints
+	handle("/api/helm/template", authHandlerWithUser(func(user *auth.User, w http.ResponseWriter, r *http.Request) {
+		h := handlers.HelmHandlers{
+			ApiServerHost: s.KubeAPIServerURL,
+			Transport:     s.K8sClient.Transport,
+			UserToken:     user.Token,
+		}
+		h.HandleHelmRenderManifests(w, r)
+	}))
+
+	handle("/api/helm/release", authHandlerWithUser(func(user *auth.User, w http.ResponseWriter, r *http.Request) {
+		h := handlers.HelmHandlers{
+			ApiServerHost: s.KubeAPIServerURL,
+			Transport:     s.K8sClient.Transport,
+			UserToken:     user.Token,
+		}
+		h.HandleHelmInstall(w, r)
+	}))
+
+	handle("/api/helm/releases", authHandlerWithUser(func(user *auth.User, w http.ResponseWriter, r *http.Request) {
+		h := handlers.HelmHandlers{
+			ApiServerHost: s.KubeAPIServerURL,
+			Transport:     s.K8sClient.Transport,
+			UserToken:     user.Token,
+		}
+		h.HandleHelmList(w, r)
+	}))
+
 	helmChartRepoProxy := proxy.NewProxy(s.HelmChartRepoProxyConfig)
 
 	handle(helmChartRepoProxyEndpoint, http.StripPrefix(
@@ -438,57 +463,3 @@ func (s *Server) handleOpenShiftTokenDeletion(user *auth.User, w http.ResponseWr
 	resp.Body.Close()
 }
 
-func (s *Server) handleHelmRenderManifests(user *auth.User, w http.ResponseWriter, r *http.Request) {
-	var req helm.HelmRequest
-
-	err := json.NewDecoder(r.Body).Decode(&req)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	conf := actions.GetActionConfigurations(s.KubeAPIServerURL, req.Namespace, user.Token, &s.K8sClient.Transport)
-	resp, err := actions.RenderManifests(req.Name, req.ChartUrl, req.Values, conf)
-	if err != nil {
-		sendResponse(w, http.StatusBadGateway, apiError{fmt.Sprintf("Failed to render manifests: %v", err)})
-	}
-
-	w.Header().Set("Content-Type", "text/yaml")
-	w.Write([]byte(resp))
-}
-
-func (s *Server) handleHelmInstall(user *auth.User, w http.ResponseWriter, r *http.Request) {
-	var req helm.HelmRequest
-
-	err := json.NewDecoder(r.Body).Decode(&req)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	conf := actions.GetActionConfigurations(s.KubeAPIServerURL, req.Namespace, user.Token, &s.K8sClient.Transport)
-	resp, err := actions.InstallChart(req.Namespace, req.Name, req.ChartUrl, req.Values, conf)
-	if err != nil {
-		sendResponse(w, http.StatusBadGateway, apiError{fmt.Sprintf("Failed to install helm chart: %v", err)})
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	res, _ := json.Marshal(resp)
-	w.Write(res)
-}
-
-func (s *Server) handleHelmList(user *auth.User, w http.ResponseWriter, r *http.Request) {
-	params := r.URL.Query()
-	ns := params.Get("ns")
-
-	conf := actions.GetActionConfigurations(s.KubeAPIServerURL, ns, user.Token, &s.K8sClient.Transport)
-	resp, err := actions.ListReleases(conf)
-	if err != nil {
-		sendResponse(w, http.StatusBadGateway, apiError{fmt.Sprintf("Failed to list helm releases: %v", err)})
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-
-	res, _ := json.Marshal(resp)
-	w.Write(res)
-}
