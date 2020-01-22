@@ -12,7 +12,7 @@ import (
 
 func TestRenderManifests(t *testing.T) {
 	tests := []struct {
-		testType string
+		testType      string
 		name          string
 		chart         string
 		values        []byte
@@ -20,7 +20,7 @@ func TestRenderManifests(t *testing.T) {
 		templateValue string
 	}{
 		{
-			testType: "valid chartPath",
+			testType:    "valid chartPath",
 			name:        "template-with-default-values",
 			chart:       "../testdata/influxdb-3.0.2.tgz",
 			values:      nil,
@@ -269,7 +269,7 @@ spec:
 `,
 		},
 		{
-			testType: "valid chartPath",
+			testType:    "valid chartPath",
 			name:        "template-with-custom-values",
 			chart:       "../testdata/influxdb-3.0.2.tgz",
 			values:      []byte("{\"service\": { \"type\": \"NodePort\" }, \"persistence\": {\"size\": \"16Gi\"}}"),
@@ -518,12 +518,12 @@ spec:
 `,
 		},
 		{
-				testType: "invalid chartPath",
-				name:        "template-with-invalid-chart-path",
-				chart:       "../testdata/influxdb-3.0.1.tgz",
-				values:      []byte("{\"service\": { \"type\": \"NodePort\" }, \"persistence\": {\"size\": \"16Gi\"}}"),
-				releaseName: "test",
-				templateValue: "",
+			testType:      "invalid chartPath",
+			name:          "template-with-invalid-chart-path",
+			chart:         "../testdata/influxdb-3.0.1.tgz",
+			values:        []byte("{\"service\": { \"type\": \"NodePort\" }, \"persistence\": {\"size\": \"16Gi\"}}"),
+			releaseName:   "test",
+			templateValue: "",
 		},
 	}
 
@@ -552,7 +552,7 @@ spec:
 					if tt.templateValue != txt {
 						t.Error("Template text isn't matching")
 					}
-				}else if tt.testType == "invalid chartPath" {
+				} else if tt.testType == "invalid chartPath" {
 					if err == nil {
 						t.Error("Should throw an error while locating invalid chart")
 					}

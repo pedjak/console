@@ -3,7 +3,6 @@ package server
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/openshift/console/pkg/helm/handlers"
 	"html/template"
 	"io"
 	"net/http"
@@ -16,6 +15,7 @@ import (
 	"github.com/coreos/pkg/health"
 
 	"github.com/openshift/console/pkg/auth"
+	helmHandlers "github.com/openshift/console/pkg/helm/handlers"
 	"github.com/openshift/console/pkg/proxy"
 	"github.com/openshift/console/pkg/version"
 )
@@ -177,6 +177,12 @@ func (s *Server) HTTPHandler() http.Handler {
 		handle("/api/openshift/delete-token", authHandlerWithUser(s.handleOpenShiftTokenDeletion))
 	}
 
+	handleUserAuthEndpoints := func(endpoints *[]auth.UserAuthEndPointHandler) {
+		for _, eh := range *endpoints {
+			handle(eh.Path, authHandlerWithUser(eh.Handler))
+		}
+	}
+
 	handleFunc("/api/", notFoundHandler)
 
 	staticHandler := http.StripPrefix(proxy.SingleJoiningSlash(s.BaseURL.Path, "/static/"), http.FileServer(http.Dir(s.PublicDir)))
@@ -301,32 +307,7 @@ func (s *Server) HTTPHandler() http.Handler {
 	handle("/api/console/version", authHandler(s.versionHandler))
 
 	// Helm Endpoints
-	handle("/api/helm/template", authHandlerWithUser(func(user *auth.User, w http.ResponseWriter, r *http.Request) {
-		h := handlers.HelmHandlers{
-			ApiServerHost: s.KubeAPIServerURL,
-			Transport:     s.K8sClient.Transport,
-			UserToken:     user.Token,
-		}
-		h.HandleHelmRenderManifests(w, r)
-	}))
-
-	handle("/api/helm/release", authHandlerWithUser(func(user *auth.User, w http.ResponseWriter, r *http.Request) {
-		h := handlers.HelmHandlers{
-			ApiServerHost: s.KubeAPIServerURL,
-			Transport:     s.K8sClient.Transport,
-			UserToken:     user.Token,
-		}
-		h.HandleHelmInstall(w, r)
-	}))
-
-	handle("/api/helm/releases", authHandlerWithUser(func(user *auth.User, w http.ResponseWriter, r *http.Request) {
-		h := handlers.HelmHandlers{
-			ApiServerHost: s.KubeAPIServerURL,
-			Transport:     s.K8sClient.Transport,
-			UserToken:     user.Token,
-		}
-		h.HandleHelmList(w, r)
-	}))
+	handleUserAuthEndpoints(helmHandlers.Handlers(s.KubeAPIServerURL, &s.K8sClient.Transport))
 
 	helmChartRepoProxy := proxy.NewProxy(s.HelmChartRepoProxyConfig)
 
@@ -462,4 +443,3 @@ func (s *Server) handleOpenShiftTokenDeletion(user *auth.User, w http.ResponseWr
 	io.Copy(w, resp.Body)
 	resp.Body.Close()
 }
-

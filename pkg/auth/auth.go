@@ -74,6 +74,11 @@ type SpecialAuthURLs struct {
 	KubeAdminLogout string
 }
 
+type UserAuthEndPointHandler struct {
+	Path    string
+	Handler func(user *User, w http.ResponseWriter, r *http.Request)
+}
+
 // loginMethod is used to handle OAuth2 responses and associate bearer tokens
 // with a user.
 //

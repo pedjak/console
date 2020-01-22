@@ -14,21 +14,21 @@ import (
 
 func TestInstallChart(t *testing.T) {
 	tests := []struct {
-		releaseName string
-		chartPath   string
-		chartName string
+		releaseName  string
+		chartPath    string
+		chartName    string
 		chartVersion string
 	}{
 		{
-			releaseName: "valid chart path",
-			chartPath:   "../testdata/influxdb-3.0.2.tgz",
-			chartName: "influxdb",
+			releaseName:  "valid chart path",
+			chartPath:    "../testdata/influxdb-3.0.2.tgz",
+			chartName:    "influxdb",
 			chartVersion: "3.0.2",
 		},
 		{
-			releaseName: "invalid chart path",
-			chartPath:   "../testdata/influxdb-3.0.1.tgz",
-			chartName: "influxdb",
+			releaseName:  "invalid chart path",
+			chartPath:    "../testdata/influxdb-3.0.1.tgz",
+			chartName:    "influxdb",
 			chartVersion: "3.0.2",
 		},
 	}
