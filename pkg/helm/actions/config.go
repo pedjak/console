@@ -10,12 +10,17 @@ import (
 	"k8s.io/klog"
 )
 
-var settings = cli.New()
-var k8sInClusterCA = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+var settings = new()
 
 type configFlagsWithTransport struct {
 	*genericclioptions.ConfigFlags
 	Transport *http.RoundTripper
+}
+
+func new() *cli.EnvSettings {
+	conf := cli.New()
+	conf.RepositoryCache = "/tmp"
+	return conf
 }
 
 func (c configFlagsWithTransport) ToRESTConfig() (*rest.Config, error) {
@@ -26,7 +31,7 @@ func (c configFlagsWithTransport) ToRESTConfig() (*rest.Config, error) {
 	}, nil
 }
 
-func GetActionConfigurations(host, ns, token string, inCluster bool, transport *http.RoundTripper) *action.Configuration {
+func GetActionConfigurations(host, ns, token string, transport *http.RoundTripper) *action.Configuration {
 	confFlags := &configFlagsWithTransport{
 		ConfigFlags: &genericclioptions.ConfigFlags{
 			APIServer:   &host,
@@ -35,11 +40,9 @@ func GetActionConfigurations(host, ns, token string, inCluster bool, transport *
 		},
 		Transport: transport,
 	}
-	if inCluster {
-		confFlags.CAFile = &k8sInClusterCA
-	} else {
-		truePtr := true
-		confFlags.Insecure = &truePtr
+	inClusterCfg, err := rest.InClusterConfig()
+	if err == nil {
+		confFlags.CAFile = &inClusterCfg.CAFile
 	}
 	conf := new(action.Configuration)
 	conf.Init(confFlags, ns, "secrets", klog.Infof)
