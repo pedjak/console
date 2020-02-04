@@ -18,8 +18,9 @@ var (
 
 // HelmHandlers provides handlers to handle helm related requests
 type HelmHandlers struct {
-	ApiServerHost string
-	Transport     http.RoundTripper
+	ApiServerHost    string
+	Transport        http.RoundTripper
+	RunningInCluster bool
 }
 
 func (h *HelmHandlers) HandleHelmRenderManifests(user *auth.User, w http.ResponseWriter, r *http.Request) {
@@ -31,7 +32,7 @@ func (h *HelmHandlers) HandleHelmRenderManifests(user *auth.User, w http.Respons
 		return
 	}
 
-	conf := actions.GetActionConfigurations(h.ApiServerHost, req.Namespace, user.Token, &h.Transport)
+	conf := actions.GetActionConfigurations(h.ApiServerHost, req.Namespace, user.Token, h.RunningInCluster, &h.Transport)
 	resp, err := actions.RenderManifests(req.Name, req.ChartUrl, req.Values, conf)
 	if err != nil {
 		serverutils.SendResponse(w, http.StatusBadGateway, serverutils.ApiError{fmt.Sprintf("Failed to render manifests: %v", err)})
@@ -50,7 +51,7 @@ func (h *HelmHandlers) HandleHelmInstall(user *auth.User, w http.ResponseWriter,
 		return
 	}
 
-	conf := actions.GetActionConfigurations(h.ApiServerHost, req.Namespace, user.Token, &h.Transport)
+	conf := actions.GetActionConfigurations(h.ApiServerHost, req.Namespace, user.Token, h.RunningInCluster, &h.Transport)
 	resp, err := actions.InstallChart(req.Namespace, req.Name, req.ChartUrl, req.Values, conf)
 	if err != nil {
 		serverutils.SendResponse(w, http.StatusBadGateway, serverutils.ApiError{fmt.Sprintf("Failed to install helm chart: %v", err)})
@@ -65,7 +66,7 @@ func (h *HelmHandlers) HandleHelmList(user *auth.User, w http.ResponseWriter, r 
 	params := r.URL.Query()
 	ns := params.Get("ns")
 
-	conf := actions.GetActionConfigurations(h.ApiServerHost, ns, user.Token, &h.Transport)
+	conf := actions.GetActionConfigurations(h.ApiServerHost, ns, user.Token, h.RunningInCluster, &h.Transport)
 	resp, err := actions.ListReleases(conf)
 	if err != nil {
 		serverutils.SendResponse(w, http.StatusBadGateway, serverutils.ApiError{fmt.Sprintf("Failed to list helm releases: %v", err)})

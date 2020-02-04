@@ -11,6 +11,7 @@ import (
 )
 
 var settings = cli.New()
+var k8sInClusterCA = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
 
 type configFlagsWithTransport struct {
 	*genericclioptions.ConfigFlags
@@ -25,8 +26,7 @@ func (c configFlagsWithTransport) ToRESTConfig() (*rest.Config, error) {
 	}, nil
 }
 
-func GetActionConfigurations(host, ns, token string, transport *http.RoundTripper) *action.Configuration {
-
+func GetActionConfigurations(host, ns, token string, inCluster bool, transport *http.RoundTripper) *action.Configuration {
 	confFlags := &configFlagsWithTransport{
 		ConfigFlags: &genericclioptions.ConfigFlags{
 			APIServer:   &host,
@@ -34,6 +34,12 @@ func GetActionConfigurations(host, ns, token string, transport *http.RoundTrippe
 			Namespace:   &ns,
 		},
 		Transport: transport,
+	}
+	if inCluster {
+		confFlags.CAFile = &k8sInClusterCA
+	} else {
+		truePtr := true
+		confFlags.Insecure = &truePtr
 	}
 	conf := new(action.Configuration)
 	conf.Init(confFlags, ns, "secrets", klog.Infof)

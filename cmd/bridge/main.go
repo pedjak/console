@@ -241,6 +241,7 @@ func main() {
 	var k8sEndpoint *url.URL
 	switch *fK8sMode {
 	case "in-cluster":
+		srv.RunningInCluster = true
 		k8sEndpoint = &url.URL{Scheme: "https", Host: "kubernetes.default.svc"}
 
 		var err error
@@ -312,6 +313,7 @@ func main() {
 		}
 
 	case "off-cluster":
+		srv.RunningInCluster = false
 		k8sEndpoint = bridge.ValidateFlagIsURL("k8s-mode-off-cluster-endpoint", *fK8sModeOffClusterEndpoint)
 		serviceProxyTLSConfig := &tls.Config{
 			InsecureSkipVerify: *fK8sModeOffClusterSkipVerifyTLS,

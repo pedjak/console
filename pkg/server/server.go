@@ -83,7 +83,9 @@ type Server struct {
 	CustomLogoFile       string
 	StatuspageID         string
 	LoadTestFactor       int
-	DexClient            api.DexClient
+	// This flag would be set if console is running in cluster
+	RunningInCluster bool
+	DexClient        api.DexClient
 	// A client with the correct TLS setup for communicating with the API server.
 	K8sClient                *http.Client
 	PrometheusProxyConfig    *proxy.Config
@@ -302,8 +304,9 @@ func (s *Server) HTTPHandler() http.Handler {
 
 	// Helm Endpoints
 	helmConfig := &handlers.HelmHandlers{
-		ApiServerHost: s.KubeAPIServerURL,
-		Transport:     s.K8sClient.Transport,
+		ApiServerHost:    s.KubeAPIServerURL,
+		Transport:        s.K8sClient.Transport,
+		RunningInCluster: s.RunningInCluster,
 	}
 	handle("/api/helm/template", authHandlerWithUser(helmConfig.HandleHelmRenderManifests))
 	handle("/api/helm/releases", authHandlerWithUser(helmConfig.HandleHelmList))
