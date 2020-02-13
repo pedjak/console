@@ -34,43 +34,41 @@ func fakeHelmHandler() HelmHandlers {
 
 func TestHelmHandlers_HandleHelmList(t *testing.T) {
 	tests := []struct {
-		test        string
+		name        string
 		expectedMsg string
 		releaseList []*release.Release
 		err         error
+		httpStatusCode int
 	}{
-		{test: "invalid test", expectedMsg: "{\"error\":\"Failed to list helm releases: unknown error occurred\"}"},
-		{test: "valid test", expectedMsg: "[{\"name\":\"Test\"}]"},
+		{
+			name: "Error occurred at listing releases",
+			err: errors.New("unknown error occurred"),
+			httpStatusCode: http.StatusBadGateway,
+			expectedMsg: "{\"error\":\"Failed to list helm releases: unknown error occurred\"}",
+		},
+		{
+			name: "Return releases serialized in JSON format",
+			expectedMsg: "[{\"name\":\"Test\"}]",
+			releaseList: fakeReleaseList,
+			httpStatusCode: http.StatusOK,
+		},
 	}
 	for _, tt := range tests {
-		t.Run("List helm releases", func(t *testing.T) {
+		t.Run(tt.name, func(t *testing.T) {
 			handlers := fakeHelmHandler()
-			if tt.test == "valid test" {
-				handlers.listReleases = fake.FakeListReleases(fakeReleaseList, nil)
-			} else if tt.test == "invalid test" {
-				handlers.listReleases = fake.FakeListReleases(nil, errors.New("unknown error occurred"))
-			}
+			handlers.listReleases = fake.FakeListReleases(tt.releaseList, tt.err)
 
 			request := httptest.NewRequest("", "/foo", strings.NewReader("{}"))
 			response := httptest.NewRecorder()
 
 			handlers.HandleHelmList(&auth.User{}, response, request)
-			switch tt.test {
-			case "valid test":
-				if response.Code != http.StatusOK {
-					t.Error("Failed to install release")
-				}
-				if bytes.Compare(response.Body.Bytes(), []byte(tt.expectedMsg)) != 0 {
-					t.Errorf("response body not matching expected is %s and received is %s", tt.expectedMsg, string(response.Body.Bytes()))
-				}
-			case "invalid test":
-				if response.Code != http.StatusBadGateway {
-					t.Error("response code should be 400")
-				}
-				if bytes.Compare(response.Body.Bytes(), []byte(tt.expectedMsg)) != 0 {
-					t.Errorf("response body not matching expected is %s and received is %s", tt.expectedMsg, string(response.Body.Bytes()))
-				}
+			if response.Code != tt.httpStatusCode {
+				t.Errorf("response code should be %v but got %v", tt.httpStatusCode, response.Code)
 			}
+			if response.Body.String() != tt.expectedMsg {
+				t.Errorf("response body not matching expected is %s and received is %s", tt.expectedMsg, response.Body.String())
+			}
+
 		})
 	}
 }
