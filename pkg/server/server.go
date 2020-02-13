@@ -301,10 +301,7 @@ func (s *Server) HTTPHandler() http.Handler {
 	handle("/api/console/version", authHandler(s.versionHandler))
 
 	// Helm Endpoints
-	helmConfig := &handlers.HelmHandlers{
-		ApiServerHost: s.KubeAPIServerURL,
-		Transport:     s.K8sClient.Transport,
-	}
+	helmConfig := handlers.NewHelmHandler(s.KubeAPIServerURL, s.K8sClient.Transport)
 	handle("/api/helm/template", authHandlerWithUser(helmConfig.HandleHelmRenderManifests))
 	handle("/api/helm/releases", authHandlerWithUser(helmConfig.HandleHelmList))
 	handle("/api/helm/release", authHandlerWithUser(helmConfig.HandleHelmInstall))
