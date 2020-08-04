@@ -89,7 +89,7 @@ func (b HelmConfigGetter) parseHelmConfig(repo unstructured.Unstructured) (*Helm
 		return nil, err
 	}
 
-	tlsReference, _, err := unstructured.NestedString(repo.Object, "spec", "connectionConfig", "tlsconfig", "name")
+	tlsReference, _, err := unstructured.NestedString(repo.Object, "spec", "connectionConfig", "tlsClientConfig", "name")
 	if err != nil {
 		return nil, err
 	}
@@ -174,7 +174,7 @@ func (b HelmConfigGetter) Get(caCert, tlsCert, tlsKey []byte) (*tls.Config, erro
 			return nil, err
 		}
 	}
-	mTLSConfig.ClientCAs = rootCAs
+	mTLSConfig.RootCAs = rootCAs
 
 	if tlsKey != nil && tlsCert != nil {
 		cert, err := tls.X509KeyPair(tlsCert, tlsKey)
