@@ -708,7 +708,7 @@ func TestHelmHandlers_HandleGetRepos(t *testing.T) {
 
 		request = httptest.NewRequest(http.MethodGet, "/api/helm/charts/index.yaml", strings.NewReader(""))
 		response := httptest.NewRecorder()
-		handlers.HandleGetRepos(&auth.User{}, response, request)
+		handlers.HandleGetIndex(&auth.User{}, response, request)
 
 		if tt.expectedResponse == "" && tt.indexFile != nil {
 			expectedResponse, err := yaml.Marshal(tt.indexFile)

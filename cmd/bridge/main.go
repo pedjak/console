@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"flag"
 	"fmt"
+	"github.com/openshift/console/pkg/helm/chartproxy"
 	"runtime"
 
 	"io/ioutil"
@@ -20,7 +21,6 @@ import (
 	"github.com/openshift/console/pkg/auth"
 	"github.com/openshift/console/pkg/bridge"
 	"github.com/openshift/console/pkg/crypto"
-	"github.com/openshift/console/pkg/helm/chartproxy"
 	"github.com/openshift/console/pkg/knative"
 	"github.com/openshift/console/pkg/proxy"
 	"github.com/openshift/console/pkg/server"
@@ -631,7 +631,7 @@ func main() {
 		bridge.FlagFatalf("listen", "scheme must be one of: http, https")
 	}
 
-	helmConfig.Configure(srv)
+	helmConfig.Configure()
 
 	httpsrv := &http.Server{
 		Addr:    listenURL.Host,

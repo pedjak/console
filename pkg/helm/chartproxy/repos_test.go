@@ -1,7 +1,8 @@
-package actions
+package chartproxy
 
 import (
 	"fmt"
+	"github.com/openshift/console/pkg/helm/chartproxy"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -407,9 +408,9 @@ func TestHelmConfigBuilder_IndexFiles(t *testing.T) {
 			w.Header().Set("Content-Type", "application/yaml")
 			fmt.Fprintln(w, tt.indexFile)
 		}))
-		helmConfigBuilder := HelmConfigGetter{}
+		helmConfigBuilder := repo.helmRepoGetter{}
 
-		helmConfigs := []*HelmConfig{
+		helmConfigs := []*repo.helmRepo{
 			{
 				Name: "sample-" + strconv.Itoa(i),
 				Url:  ts.URL,
