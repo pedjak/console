@@ -6,7 +6,11 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"io/ioutil"
+	"net/http"
 	"net/url"
+	"sigs.k8s.io/yaml"
+	"strings"
 
 	"helm.sh/helm/v3/pkg/repo"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -30,6 +34,59 @@ var (
 const (
 	configNamespace = "openshift-config"
 )
+
+type helmRepo struct {
+	Name    string
+	Url     *url.URL
+	TlsClientConfig *tls.Config
+}
+
+type TLSConfigGetter interface {
+	Get() (*tls.Config, error)
+}
+
+func (repo helmRepo) Get() (*tls.Config, error) {
+	return repo.TlsClientConfig, nil
+}
+
+func (repo helmRepo) httpClient() (*http.Client, error) {
+	tlsConfig, err := repo.Get()
+	if err != nil {
+		return nil, err
+	}
+	tr := &http.Transport{
+		TLSClientConfig: tlsConfig,
+	}
+
+	client := &http.Client{Transport: tr}
+	return client, nil
+}
+
+func (hr helmRepo) IndexFile() (*repo.IndexFile, error) {
+	var indexFile repo.IndexFile
+	httpClient, err := hr.httpClient()
+	if err != nil {
+		return nil, err
+	}
+	indexUrl := hr.Url.String()
+	if !strings.HasSuffix(indexUrl, "/index.yaml") {
+		indexUrl += "/index.yaml"
+	}
+	resp, err := httpClient.Get(indexUrl)
+	if err != nil {
+		return nil, err
+	}
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	err = yaml.Unmarshal(body, &indexFile)
+	if err != nil {
+		return nil, err
+	}
+	return &indexFile, nil
+}
+
 
 type HelmRepoGetter interface {
 	List() ([]*helmRepo, error)
@@ -169,19 +226,3 @@ func NewRepoGetter(client dynamic.Interface, corev1Client corev1.CoreV1Interface
 	}
 }
 
-func FetchIndexFile(getter HelmRepoGetter) (*repo.IndexFile, error) {
-	helmRepos, err := getter.List()
-	if err != nil {
-		return nil, err
-	}
-
-	var indexFiles []*repo.IndexFile
-	for _, helmRepo := range helmRepos {
-		idxFile, err := helmRepo.IndexFile()
-		if err != nil {
-			return nil, err
-		}
-		indexFiles = append(indexFiles, idxFile)
-	}
-	return mergeIndexFiles(indexFiles...), nil
-}

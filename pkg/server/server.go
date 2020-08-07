@@ -7,6 +7,7 @@ import (
 	"html/template"
 	"io"
 	"io/ioutil"
+	"k8s.io/client-go/rest"
 	"net/http"
 	"net/url"
 	"os"
@@ -379,7 +380,16 @@ func (s *Server) HTTPHandler() http.Handler {
 	handle("/api/helm/releases", authHandlerWithUser(helmHandlers.HandleHelmList))
 	handle("/api/helm/chart", authHandlerWithUser(helmHandlers.HandleChartGet))
 	handle("/api/helm/release/history", authHandlerWithUser(helmHandlers.HandleGetReleaseHistory))
-	handle("/api/helm/charts/index.yaml", authHandlerWithUser(helmHandlers.HandleGetIndex))
+	handle("/api/helm/charts/index.yaml", helmhandlerspkg.NewIndexHandler(func() (*rest.Config, error) {
+		if s.StaticUser != nil {
+			return &rest.Config{
+				Host: s.KubeAPIServerURL,
+				BearerToken: s.StaticUser.Token,
+				Transport: s.K8sClient.Transport,
+			}, nil
+		}
+		return rest.InClusterConfig()
+	}))
 
 	handle("/api/helm/release", authHandlerWithUser(func(user *auth.User, w http.ResponseWriter, r *http.Request) {
 		switch r.Method {

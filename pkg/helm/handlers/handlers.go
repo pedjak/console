@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/openshift/console/pkg/helm/chartproxy"
 
-	"k8s.io/client-go/kubernetes"
 	"net/http"
 
 	"github.com/coreos/pkg/capnslog"
@@ -15,10 +14,6 @@ import (
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/release"
-	"helm.sh/helm/v3/pkg/repo"
-	"k8s.io/client-go/dynamic"
-	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
-	"k8s.io/client-go/rest"
 	"sigs.k8s.io/yaml"
 )
 
@@ -40,15 +35,6 @@ func New(apiUrl string, transport http.RoundTripper) *helmHandlers {
 		uninstallRelease:        actions.UninstallRelease,
 		rollbackRelease:         actions.RollbackRelease,
 		getReleaseHistory:       actions.GetReleaseHistory,
-		getHelmIndexFile:        chartproxy.FetchIndexFile,
-		getDynamicClient:        actions.DynamicClient,
-		getCoreV1Client: func(conf *rest.Config) (v1.CoreV1Interface, error) {
-			client, err := kubernetes.NewForConfig(conf)
-			if err != nil {
-				return nil, err
-			}
-			return client.CoreV1(), nil
-		},
 	}
 }
 
@@ -70,9 +56,6 @@ type helmHandlers struct {
 	getRelease        func(string, *action.Configuration) (*release.Release, error)
 	getChart          func(chartUrl string, conf *action.Configuration) (*chart.Chart, error)
 	getReleaseHistory func(releaseName string, conf *action.Configuration) ([]*release.Release, error)
-	getHelmIndexFile  func(getter chartproxy.HelmRepoGetter) (*repo.IndexFile, error)
-	getDynamicClient  func(conf *rest.Config) (dynamic.Interface, error)
-	getCoreV1Client   func(conf *rest.Config) (v1.CoreV1Interface, error)
 }
 
 func (h *helmHandlers) HandleHelmRenderManifests(user *auth.User, w http.ResponseWriter, r *http.Request) {
@@ -260,29 +243,26 @@ func (h *helmHandlers) HandleGetReleaseHistory(user *auth.User, w http.ResponseW
 	w.Write(res)
 }
 
-func (h *helmHandlers) HandleGetIndex(user *auth.User, w http.ResponseWriter, r *http.Request) {
-	conf := h.getActionConfigurations(h.ApiServerHost, "", user.Token, &h.Transport)
-	config, err := conf.RESTClientGetter.ToRESTConfig()
+type indexHandler struct {
+	restConfigProvider chartproxy.RestConfigProvider
+}
+
+func NewIndexHandler(restConfigProvider chartproxy.RestConfigProvider) (*indexHandler) {
+	return &indexHandler{restConfigProvider: restConfigProvider}
+}
+
+func (h *indexHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	proxy, err := chartproxy.New(h.restConfigProvider)
+
 	if err != nil {
 		serverutils.SendResponse(w, http.StatusInternalServerError, serverutils.ApiError{Err: fmt.Sprintf("Failed to get k8s config: %v", err)})
-		return
-	}
-	client, err := h.getDynamicClient(config)
-	if err != nil {
-		serverutils.SendResponse(w, http.StatusInternalServerError, serverutils.ApiError{Err: fmt.Sprintf("Failed to get k8s dynamic client: %v", err)})
-		return
-	}
-
-	coreV1Client, err := h.getCoreV1Client(config)
-	if err != nil {
-		serverutils.SendResponse(w, http.StatusInternalServerError, serverutils.ApiError{Err: fmt.Sprintf("Failed to get k8s core client: %v", err)})
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/yaml")
 	w.Header().Set("Cache-Control", "no-store, must-revalidate")
 
-	indexFile, err := h.getHelmIndexFile(chartproxy.NewRepoGetter(client, coreV1Client))
+	indexFile, err := proxy.IndexFile()
 
 	out, _ := yaml.Marshal(indexFile)
 	w.Write(out)
