@@ -11,6 +11,7 @@ require (
 	github.com/openshift/library-go v0.0.0-20200402123743-4015ba624cae
 	github.com/pquerna/cachecontrol v0.0.0-20180517163645-1555304b9b35 // indirect
 	github.com/rawagner/graphql-transport-ws v0.0.0-20200817140314-dcfbf0388067
+	golang.org/x/net v0.0.0-20200202094626-16171245cfb2
 	golang.org/x/oauth2 v0.0.0-20190604053449-0f29369cfe45
 	golang.org/x/text v0.3.3 // indirect
 	google.golang.org/grpc v1.27.0
@@ -33,4 +34,6 @@ replace (
 	bitbucket.org/ww/goautoneg => github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822
 	github.com/Azure/go-autorest/autorest => github.com/Azure/go-autorest/autorest v0.9.0
 	github.com/docker/docker => github.com/moby/moby v0.7.3-0.20190826074503-38ab9da00309
+
+	github.com/opencontainers/runc => github.com/opencontainers/runc v1.0.0-rc10
 )
